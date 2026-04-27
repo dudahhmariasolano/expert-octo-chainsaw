@@ -1,6 +1,7 @@
+
 import logging
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ConversationHandler, ContextTypes, filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, ConversationHandler, CallbackContext, Filters
 
 TOKEN = "8385589309:AAEFmuqO3I0I4ZeXm-XJrYWwkl7GSRxqBWY"
 AFFILIATE_ID = "18318050413"
@@ -25,26 +26,26 @@ def gerar_template(nome, preco_de, preco_por, link):
         f"⚠ Promoção sujeita a alteração a qualquer momento."
     )
 
-async def start(update, context):
-    await update.message.reply_text("👋 Me manda o link do produto da Shopee!")
+def start(update, context):
+    update.message.reply_text("👋 Me manda o link do produto da Shopee!")
     return AGUARDA_LINK
 
-async def receber_link(update, context):
+def receber_link(update, context):
     context.user_data["link"] = converter_link(update.message.text)
-    await update.message.reply_text("✅ Link recebido!\n\n📝 Agora me manda o *nome do produto:*", parse_mode="Markdown")
+    update.message.reply_text("✅ Link recebido!\n\n📝 Agora me manda o nome do produto:")
     return AGUARDA_NOME
 
-async def receber_nome(update, context):
+def receber_nome(update, context):
     context.user_data["nome"] = update.message.text.strip()
-    await update.message.reply_text("💰 Qual o preço *original* (De)? Ex: `18,92`", parse_mode="Markdown")
+    update.message.reply_text("💰 Qual o preço original (De)? Ex: 18,92")
     return AGUARDA_PRECO_DE
 
-async def receber_preco_de(update, context):
+def receber_preco_de(update, context):
     context.user_data["preco_de"] = update.message.text.strip()
-    await update.message.reply_text("🔥 Qual o preço *com desconto* (Por)? Ex: `11,73`", parse_mode="Markdown")
+    update.message.reply_text("🔥 Qual o preço com desconto (Por)? Ex: 11,73")
     return AGUARDA_PRECO_POR
 
-async def receber_preco_por(update, context):
+def receber_preco_por(update, context):
     context.user_data["preco_por"] = update.message.text.strip()
     template = gerar_template(
         context.user_data["nome"],
@@ -52,30 +53,32 @@ async def receber_preco_por(update, context):
         context.user_data["preco_por"],
         context.user_data["link"]
     )
-    await update.message.reply_text("✅ Template pronto:\n\n" + "─"*30)
-    await update.message.reply_text(template)
-    await update.message.reply_text("🚀 Me manda outro link quando quiser!")
+    update.message.reply_text("✅ Template pronto:\n\n" + "─"*30)
+    update.message.reply_text(template)
+    update.message.reply_text("🚀 Me manda outro link quando quiser!")
     return AGUARDA_LINK
 
-async def cancelar(update, context):
-    await update.message.reply_text("❌ Cancelado! Me manda um link quando quiser.")
+def cancelar(update, context):
+    update.message.reply_text("❌ Cancelado!")
     return AGUARDA_LINK
 
 def main():
-    app = ApplicationBuilder().token(TOKEN).build()
+    updater = Updater(TOKEN)
+    dp = updater.dispatcher
     conv = ConversationHandler(
-        entry_points=[CommandHandler("start", start), MessageHandler(filters.TEXT & ~filters.COMMAND, receber_link)],
+        entry_points=[CommandHandler("start", start), MessageHandler(Filters.text & ~Filters.command, receber_link)],
         states={
-            AGUARDA_LINK: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_link)],
-            AGUARDA_NOME: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_nome)],
-            AGUARDA_PRECO_DE: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_preco_de)],
-            AGUARDA_PRECO_POR: [MessageHandler(filters.TEXT & ~filters.COMMAND, receber_preco_por)],
+            AGUARDA_LINK: [MessageHandler(Filters.text & ~Filters.command, receber_link)],
+            AGUARDA_NOME: [MessageHandler(Filters.text & ~Filters.command, receber_nome)],
+            AGUARDA_PRECO_DE: [MessageHandler(Filters.text & ~Filters.command, receber_preco_de)],
+            AGUARDA_PRECO_POR: [MessageHandler(Filters.text & ~Filters.command, receber_preco_por)],
         },
         fallbacks=[CommandHandler("cancelar", cancelar)],
     )
-    app.add_handler(conv)
+    dp.add_handler(conv)
     print("🤖 Bot rodando!")
-    app.run_polling()
+    updater.start_polling()
+    updater.idle()
 
 if __name__ == "__main__":
     main()
